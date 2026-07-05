@@ -228,14 +228,14 @@ export default function App() {
   // Mic initialization & device selection
   const sourceNodeRef = useRef<MediaStreamAudioSourceNode | null>(null);
 
+  const updateDevices = () => {
+    navigator.mediaDevices.enumerateDevices().then(devices => {
+      setAudioDevices(devices.filter(d => d.kind === 'audioinput'));
+      setOutputDevices(devices.filter(d => d.kind === 'audiooutput'));
+    }).catch(console.error);
+  };
+
   useEffect(() => {
-    // Enumerate devices
-    const updateDevices = () => {
-      navigator.mediaDevices.enumerateDevices().then(devices => {
-        setAudioDevices(devices.filter(d => d.kind === 'audioinput'));
-        setOutputDevices(devices.filter(d => d.kind === 'audiooutput'));
-      }).catch(console.error);
-    };
     updateDevices();
     navigator.mediaDevices.addEventListener('devicechange', updateDevices);
     
@@ -251,6 +251,9 @@ export default function App() {
         stream.getTracks().forEach(t => t.stop());
         return;
       }
+      
+      // Update devices after permission is granted to get device labels
+      updateDevices();
       
       if (localStreamRef.current) {
         localStreamRef.current.getTracks().forEach(t => t.stop());
