@@ -243,6 +243,37 @@ export default function App() {
   }, []);
 
   const [hasMicPermission, setHasMicPermission] = useState<boolean>(false);
+  const [micPermissionDenied, setMicPermissionDenied] = useState<boolean>(false);
+
+  useEffect(() => {
+    // Check if permission is already granted
+    navigator.mediaDevices.enumerateDevices().then(devices => {
+      if (devices.some(device => device.label && device.label.length > 0)) {
+        setHasMicPermission(true);
+      }
+    }).catch(console.error);
+    
+    // Also try permissions API if available
+    if (navigator.permissions && navigator.permissions.query) {
+      navigator.permissions.query({ name: 'microphone' as PermissionName })
+        .then(permissionStatus => {
+          if (permissionStatus.state === 'granted') {
+            setHasMicPermission(true);
+          } else if (permissionStatus.state === 'denied') {
+            setMicPermissionDenied(true);
+          }
+          permissionStatus.onchange = () => {
+            if (permissionStatus.state === 'granted') {
+              setHasMicPermission(true);
+              setMicPermissionDenied(false);
+            } else if (permissionStatus.state === 'denied') {
+              setHasMicPermission(false);
+              setMicPermissionDenied(true);
+            }
+          };
+        }).catch(() => {});
+    }
+  }, []);
 
   useEffect(() => {
     // Only attempt to get media if permission is granted
@@ -363,26 +394,36 @@ export default function App() {
       {!hasMicPermission && (
         <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center">
           <div className="bg-slate-900 border border-slate-800 p-8 rounded-3xl max-w-md w-full text-center shadow-2xl">
-            <div className="w-16 h-16 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mx-auto mb-6">
-              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+            <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 ${micPermissionDenied ? 'bg-red-500/20 text-red-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
+              {micPermissionDenied ? (
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+              ) : (
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+              )}
             </div>
-            <h2 className="text-2xl font-bold text-slate-100 mb-2">Microphone Access Required</h2>
+            <h2 className="text-2xl font-bold text-slate-100 mb-2">
+              {micPermissionDenied ? 'Microphone Blocked' : 'Microphone Access Required'}
+            </h2>
             <p className="text-slate-400 mb-8 text-sm leading-relaxed">
-              Live Translator needs access to your microphone to capture your speech for real-time translation.
+              {micPermissionDenied 
+                ? 'You have blocked microphone access in your browser. Please click the site settings icon (usually a lock) in your URL bar, allow microphone access, and reload the page.'
+                : 'Live Translator needs access to your microphone to capture your speech for real-time translation.'}
             </p>
-            <button 
-              onClick={() => {
-                navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
-                  stream.getTracks().forEach(t => t.stop());
-                  setHasMicPermission(true);
-                }).catch(err => {
-                  alert('Microphone access was denied. Please allow it in your browser settings.');
-                });
-              }}
-              className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold uppercase tracking-widest py-4 px-8 rounded-xl w-full transition-all active:scale-95"
-            >
-              Grant Permission
-            </button>
+            {!micPermissionDenied && (
+              <button 
+                onClick={() => {
+                  navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+                    stream.getTracks().forEach(t => t.stop());
+                    setHasMicPermission(true);
+                  }).catch(err => {
+                    setMicPermissionDenied(true);
+                  });
+                }}
+                className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold uppercase tracking-widest py-4 px-8 rounded-xl w-full transition-all active:scale-95"
+              >
+                Grant Permission
+              </button>
+            )}
           </div>
         </div>
       )}
