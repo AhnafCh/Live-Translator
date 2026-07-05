@@ -242,7 +242,12 @@ export default function App() {
     return () => navigator.mediaDevices.removeEventListener('devicechange', updateDevices);
   }, []);
 
+  const [hasMicPermission, setHasMicPermission] = useState<boolean>(false);
+
   useEffect(() => {
+    // Only attempt to get media if permission is granted
+    if (!hasMicPermission) return;
+
     let active = true;
     navigator.mediaDevices.getUserMedia({
       audio: selectedMicId === 'default' ? true : { deviceId: { exact: selectedMicId } }
@@ -355,6 +360,32 @@ export default function App() {
 
   return (
     <div className="w-full h-full min-h-screen bg-slate-950 text-slate-200 font-sans p-6 overflow-hidden flex flex-col items-center justify-center">
+      {!hasMicPermission && (
+        <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="bg-slate-900 border border-slate-800 p-8 rounded-3xl max-w-md w-full text-center shadow-2xl">
+            <div className="w-16 h-16 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mx-auto mb-6">
+              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+            </div>
+            <h2 className="text-2xl font-bold text-slate-100 mb-2">Microphone Access Required</h2>
+            <p className="text-slate-400 mb-8 text-sm leading-relaxed">
+              Live Translator needs access to your microphone to capture your speech for real-time translation.
+            </p>
+            <button 
+              onClick={() => {
+                navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+                  stream.getTracks().forEach(t => t.stop());
+                  setHasMicPermission(true);
+                }).catch(err => {
+                  alert('Microphone access was denied. Please allow it in your browser settings.');
+                });
+              }}
+              className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold uppercase tracking-widest py-4 px-8 rounded-xl w-full transition-all active:scale-95"
+            >
+              Grant Permission
+            </button>
+          </div>
+        </div>
+      )}
       <audio ref={remoteAudioRef} autoPlay />
       <div className="w-[1024px] h-[768px] flex flex-col">
         {/* Header Section */}
